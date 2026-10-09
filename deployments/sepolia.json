@@ -1,0 +1,145 @@
+{
+  "chainId": 11155111,
+  "deployer": "0xEb0243ea72CB24eFb7128Ee7aca314C080b600c4",
+  "contracts": {
+    "StellarOracle": {
+      "address": "0x100B01F4b09Ab26A4E941E3f3c470Ce5fCA1CcE9",
+      "txHash": "0x1c0bdf14af0a6a84a34b74466837b1c5a93f293bc44375a14e1a8beaadb2b252",
+      "block": 11876112,
+      "gasUsed": 13921551,
+      "constructorArgs": {
+        "vlad": "0x49ba857d553ef219B144b200F41acaf8CB6768E9",
+        "reporterStake": "100000000000000000000",
+        "questionFee": "10000000000000000000",
+        "slashBps": 1000,
+        "sink": "0xE79302DAebc28297745afC206553afBeD9d04d60"
+      }
+    },
+    "StellarPredict": {
+      "address": "0xb9FA67c0C2141d0F0fcB17F81fC53ad918f776FD",
+      "txHash": "0x0f2b94be1d669433e57d90fa5eb9e7eb1e1101013973a6b7e5250ca25c7cb624",
+      "block": 11876113,
+      "gasUsed": 12884332,
+      "constructorArgs": {
+        "vlad": "0x49ba857d553ef219B144b200F41acaf8CB6768E9",
+        "oracle": "0x100B01F4b09Ab26A4E941E3f3c470Ce5fCA1CcE9",
+        "sink": "0xE79302DAebc28297745afC206553afBeD9d04d60",
+        "feeBps": 200
+      }
+    }
+  },
+  "external": {
+    "VladToken": {
+      "address": "0x49ba857d553ef219B144b200F41acaf8CB6768E9",
+      "source": "Stellar-Faucet deployments/sepolia.json"
+    },
+    "StellarArena": {
+      "address": "0xE79302DAebc28297745afC206553afBeD9d04d60",
+      "source": "Stellar-Arena deployments/sepolia.json",
+      "role": "fee sink: receives question fees, creator application fees and the 2% market fee"
+    }
+  },
+  "setup": {
+    "grantAskerRoleToPredict": {
+      "txHash": "0x0fc95ed82adf02a87e8743e89496ec64c1d28b727429ca5bc9a4f01a225f224b",
+      "block": 11876115,
+      "gasUsed": 133698,
+      "role": "0x92ad77c4d42845f37be83d385db77087582bff779bb639d2bbaab634a770d2b4"
+    },
+    "grantCreatorRoleToDeployer": {
+      "txHash": "0x739b9b1bef8c22d17101aa5eb33444f3df4306018115f75af545b65157cbff0d",
+      "block": 11876116,
+      "gasUsed": 133469,
+      "role": "0x828634d95e775031b9ff576b159a8509d3053581a8c9c4d7d86899e0afcd882f"
+    }
+  },
+  "seedMarkets": [
+    {
+      "id": 0,
+      "txHash": "0xcfd684427d20972a85c1fde73acd7b3a189384c470f53b8eb608c897021463b3",
+      "block": 11876117,
+      "gasUsed": 1699084,
+      "question": "Will ETH/USD close above $2,500 on 2026-10-16 (UTC)? Source: CoinGecko Ethereum historical data, the Close column for 2026-10-16 (coingecko.com/en/coins/ethereum/historical_data).",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "closeTime": 1792138812,
+      "closeTimeUtc": "2026-10-16T08:20:12Z",
+      "votingEnd": 1792398012,
+      "votingEndUtc": "2026-10-19T08:20:12Z",
+      "oracleQid": 0,
+      "creator": "0xEb0243ea72CB24eFb7128Ee7aca314C080b600c4"
+    },
+    {
+      "id": 1,
+      "txHash": "0x0e38fdebaf0eaa40b7b7fbd1f1217d9477687f3d91c303009f405a5e3916fbf4",
+      "block": 11876118,
+      "gasUsed": 1500362,
+      "question": "Will Bitcoin's 7-day average hashrate on 2026-10-16 be higher than on 2026-10-09? Source: blockchain.com/explorer/charts/hash-rate with the 7-day average.",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "closeTime": 1792138812,
+      "closeTimeUtc": "2026-10-16T08:20:12Z",
+      "votingEnd": 1792398012,
+      "votingEndUtc": "2026-10-19T08:20:12Z",
+      "oracleQid": 1,
+      "creator": "0xEb0243ea72CB24eFb7128Ee7aca314C080b600c4"
+    },
+    {
+      "id": 2,
+      "txHash": "0x9d6ea197d7936bac5fd722dddb4c298c075b5cea2a1a0eafd1d444ffdb590219",
+      "block": 11876119,
+      "gasUsed": 1500266,
+      "question": "Will the Sepolia base fee of block 11926811 be above 1 gwei? Source: baseFeePerGas of block 11926811 on eth-sepolia.blockscout.com/block/11926811.",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "closeTime": 1792138812,
+      "closeTimeUtc": "2026-10-16T08:20:12Z",
+      "votingEnd": 1792398012,
+      "votingEndUtc": "2026-10-19T08:20:12Z",
+      "oracleQid": 2,
+      "creator": "0xEb0243ea72CB24eFb7128Ee7aca314C080b600c4"
+    }
+  ],
+  "verified": {
+    "StellarOracle": {
+      "sourcify": "exact_match",
+      "blockscout": "Pass - Verified (is_fully_verified = true)"
+    },
+    "StellarPredict": {
+      "sourcify": "exact_match",
+      "blockscout": "Pass - Verified (is_fully_verified = true)"
+    }
+  },
+  "cost": {
+    "effectiveGasPriceWeiMin": 10000042,
+    "effectiveGasPriceWeiMax": 10000047,
+    "totalGasUsed": 31772762,
+    "totalWei": "317728975140316"
+  },
+  "notes": "Seven transactions (deployer nonce 42 -> 48) sent on 2026-10-09 with forge script script/Deploy.s.sol --broadcast --slow --skip-simulation (ETH_STRIKE_USD=2500; CoinGecko ETH/USD was 2502.13 before sending); all seven were accepted on the first run (no --resume needed). Base fee before sending: 44 wei. The script computed dates and block N from block 11876111 (timestamp 1791534012): closeTime = 1791534012 + 7 days, N = 11876111 + 50,700. The deployer ETH balance fell by exactly totalWei.",
+  "readBack": {
+    "marketCount": 3,
+    "questionCount": 3,
+    "oracleHasAskerRoleForPredict": true,
+    "predictHasCreatorRoleForDeployer": true,
+    "deployerIsAdminOfBoth": true,
+    "reporterStake": "100000000000000000000",
+    "questionFee": "10000000000000000000",
+    "slashBps": 1000,
+    "feeBps": 200,
+    "creatorFee": "50000000000000000000",
+    "oracleSink": "0xE79302DAebc28297745afC206553afBeD9d04d60",
+    "predictSink": "0xE79302DAebc28297745afC206553afBeD9d04d60",
+    "predictOracle": "0x100B01F4b09Ab26A4E941E3f3c470Ce5fCA1CcE9",
+    "runtimeCodeBytes": {
+      "StellarOracle": 8719,
+      "StellarPredict": 8050
+    }
+  }
+}

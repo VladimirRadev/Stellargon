@@ -104,8 +104,8 @@ Both contracts use OpenZeppelin `AccessControl`, `ReentrancyGuard` (on every fun
 
 | Contract | Address |
 |---|---|
-| StellarOracle | TODO (not deployed yet) |
-| StellarPredict | TODO (not deployed yet) |
+| StellarOracle | [`0x100B01F4b09Ab26A4E941E3f3c470Ce5fCA1CcE9`](https://eth-sepolia.blockscout.com/address/0x100B01F4b09Ab26A4E941E3f3c470Ce5fCA1CcE9) |
+| StellarPredict | [`0xb9FA67c0C2141d0F0fcB17F81fC53ad918f776FD`](https://eth-sepolia.blockscout.com/address/0xb9FA67c0C2141d0F0fcB17F81fC53ad918f776FD) |
 | $VLAD token (Stellar-Faucet) | [`0x49ba857d553ef219B144b200F41acaf8CB6768E9`](https://eth-sepolia.blockscout.com/address/0x49ba857d553ef219B144b200F41acaf8CB6768E9) |
 | Fee sink: StellarArena prize pool (Stellar-Arena) | [`0xE79302DAebc28297745afC206553afBeD9d04d60`](https://eth-sepolia.blockscout.com/address/0xE79302DAebc28297745afC206553afBeD9d04d60) |
 
@@ -145,12 +145,37 @@ The script sends seven transactions, in this order:
    deployment block and has a 3-day voting window. The dates and the block number are computed from the deployment
    block:
    - "Will ETH/USD close above $2,500 on *close date* (UTC)? Source: CoinGecko Ethereum historical data, the Close
-     column for *close date*."
+     column for *close date* (coingecko.com/en/coins/ethereum/historical_data)."
    - "Will Bitcoin's 7-day average hashrate on *close date* be higher than on *deploy date*? Source:
      blockchain.com/explorer/charts/hash-rate with the 7-day average."
    - "Will the Sepolia base fee of block *N* be above 1 gwei? Source: baseFeePerGas of block *N* on
-     eth-sepolia.blockscout.com." *N* is the deployment block + 50,700 (7 days of 12-second slots plus about one
-     hour), so block *N* is mined after betting closes.
+     eth-sepolia.blockscout.com/block/*N*." *N* is the deployment block + 50,700 (7 days of 12-second slots plus
+     about one hour), so block *N* is mined after betting closes.
+
+### Sepolia deployment, 2026-10-09
+
+The command above was run once with `ETH_STRIKE_USD=2500` (CoinGecko showed ETH/USD at $2,502.13 just before). All
+seven transactions were accepted on the first run (deployer nonces 42 to 48, no `--resume` needed). The full record
+is in `deployments/sepolia.json`; forge's own log is `broadcast/Deploy.s.sol/11155111/run-latest.json`.
+
+| # | Transaction | Tx hash | Block | Gas used |
+|---|---|---|---|---|
+| 1 | create `StellarOracle` | [`0x1c0bdf14…adb2b252`](https://eth-sepolia.blockscout.com/tx/0x1c0bdf14af0a6a84a34b74466837b1c5a93f293bc44375a14e1a8beaadb2b252) | 11876112 | 13,921,551 |
+| 2 | create `StellarPredict` | [`0x0f2b94be…5c7cb624`](https://eth-sepolia.blockscout.com/tx/0x0f2b94be1d669433e57d90fa5eb9e7eb1e1101013973a6b7e5250ca25c7cb624) | 11876113 | 12,884,332 |
+| 3 | `oracle.grantRole(ASKER_ROLE, predict)` | [`0x0fc95ed8…225f224b`](https://eth-sepolia.blockscout.com/tx/0x0fc95ed82adf02a87e8743e89496ec64c1d28b727429ca5bc9a4f01a225f224b) | 11876115 | 133,698 |
+| 4 | `predict.grantRole(CREATOR_ROLE, deployer)` | [`0x739b9b1b…57cbff0d`](https://eth-sepolia.blockscout.com/tx/0x739b9b1bef8c22d17101aa5eb33444f3df4306018115f75af545b65157cbff0d) | 11876116 | 133,469 |
+| 5 | `createMarket` #0 (ETH/USD) | [`0xcfd68442…021463b3`](https://eth-sepolia.blockscout.com/tx/0xcfd684427d20972a85c1fde73acd7b3a189384c470f53b8eb608c897021463b3) | 11876117 | 1,699,084 |
+| 6 | `createMarket` #1 (BTC hashrate) | [`0x0e38fdeb…3916fbf4`](https://eth-sepolia.blockscout.com/tx/0x0e38fdebaf0eaa40b7b7fbd1f1217d9477687f3d91c303009f405a5e3916fbf4) | 11876118 | 1,500,362 |
+| 7 | `createMarket` #2 (Sepolia base fee) | [`0x9d6ea197…db590219`](https://eth-sepolia.blockscout.com/tx/0x9d6ea197d7936bac5fd722dddb4c298c075b5cea2a1a0eafd1d444ffdb590219) | 11876119 | 1,500,266 |
+
+Total: 31,772,762 gas at an effective gas price of 10,000,042 to 10,000,047 wei (base fee 42 to 47 wei plus the
+0.01 gwei priority fee), which cost 0.000317728975140316 ETH.
+
+The script took its dates from block 11876111 (2026-10-09 08:20:12 UTC). All three seed markets therefore close at
+Unix time 1792138812 (2026-10-16 08:20:12 UTC), and the reporter vote on each runs until 1792398012
+(2026-10-19 08:20:12 UTC). The third market asks about block 11926811 (11876111 + 50,700).
+
+Both contracts are verified on Sourcify (`exact_match`) and on Blockscout (fully verified).
 
 ## Web app
 
