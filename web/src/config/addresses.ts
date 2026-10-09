@@ -9,8 +9,8 @@ export const CHAIN_ID = 11155111 as const
  */
 export const addresses = {
   vladToken: '0x49ba857d553ef219B144b200F41acaf8CB6768E9',
-  oracle: '0x0000000000000000000000000000000000000000',
-  predict: '0x0000000000000000000000000000000000000000',
+  oracle: '0x100B01F4b09Ab26A4E941E3f3c470Ce5fCA1CcE9',
+  predict: '0xb9FA67c0C2141d0F0fcB17F81fC53ad918f776FD',
 } as const satisfies Record<string, Address>
 
 /** Contracts listed in the footer, with Blockscout links. */

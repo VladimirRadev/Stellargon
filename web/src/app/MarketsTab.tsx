@@ -14,13 +14,6 @@ const FILTERS: readonly { key: Filter; label: string }[] = [
   { key: 'voided', label: 'Voided' },
 ]
 
-/** The three markets script/Deploy.s.sol opens at launch, shown as a preview while nothing is deployed. */
-const SEED_PREVIEW = [
-  'Will ETH/USD close above $2,500 on the closing day (UTC)? Source: CoinGecko Ethereum historical data, Close column.',
-  "Will Bitcoin's 7-day average hashrate on the closing day be higher than on the launch day? Source: blockchain.com hash-rate chart, 7-day average.",
-  'Will the Sepolia base fee of the block mined about 7 days after launch be above 1 gwei? Source: baseFeePerGas on eth-sepolia.blockscout.com.',
-]
-
 export function MarketsTab() {
   const { markets, loading } = useMarkets()
   const now = useNow()
@@ -81,7 +74,7 @@ export function MarketsTab() {
       </div>
 
       {!DEPLOYED ? (
-        <SeedPreview />
+        <Empty title="Not deployed yet">Markets appear here once StellarPredict is deployed.</Empty>
       ) : loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
@@ -156,32 +149,5 @@ export function MarketCard({ m, now, onOpen }: { m: Market; now: number; onOpen:
         </span>
       </div>
     </button>
-  )
-}
-
-function SeedPreview() {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted">
-        The contracts are not deployed yet. These are the three markets the deploy script opens at launch, each closing
-        7 days after deployment:
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {SEED_PREVIEW.map((q, i) => (
-          <div key={i} className="card flex min-w-0 flex-col border-dashed p-5 opacity-90">
-            <div className="flex items-start justify-between gap-3">
-              <span className="font-mono text-xs text-muted">seed #{i}</span>
-              <span className="inline-flex h-6 items-center rounded-full border border-border px-2.5 text-xs text-muted">Preview</span>
-            </div>
-            <h3 className="mt-2 break-words font-display text-[1.05rem] font-semibold leading-snug">{q}</h3>
-            <div className="mb-4 mt-4 space-y-3">
-              <OddsRow label="Yes" bps={5_000n} />
-              <OddsRow label="No" bps={5_000n} />
-            </div>
-            <p className="mt-auto border-t border-border/70 pt-3 text-xs text-muted">Even odds until the first bet</p>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }
