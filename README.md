@@ -154,8 +154,42 @@ The script sends seven transactions, in this order:
 
 ## Web app
 
-Planned at https://vladimirradev.github.io/Stellargon/ (tabs Markets, Oracle, Create), built with the shared Stellar
-shell (Vite, React 19, TypeScript, Tailwind CSS 4, wagmi, viem). Not published yet.
+Live: **https://vladimirradev.github.io/Stellargon/** (GitHub Pages, deployed by `.github/workflows/pages.yml` on
+every push to `main`).
+
+The app in `web/` is a static React page (Vite, React 19, TypeScript, Tailwind CSS 4, wagmi 3, viem 2). It reads
+Sepolia through public RPC endpoints only and connects to MetaMask; there is no backend. The shared Stellar frame
+(navigation across the six apps, wallet button, VLAD balance, footer, transaction button) lives in `web/src/shell/`
+and is identical in every Stellar repo.
+
+- **Markets tab.** A grid of market cards, newest first, with filters (Open, Closed, Resolved, Voided) and a search
+  box. Each card shows the question, every option's implied chance as a percentage with a bar (`impliedOdds`), the
+  total pool and a countdown to the close. Clicking a card opens the market panel: pick an option, enter a VLAD
+  amount (balance and MAX shown), approve VLAD once if the allowance is too low, then bet. The panel previews the
+  payout if your option wins (`amount × (total pool + amount) × 98% / (option pool + amount)`, with the pools as they
+  are now), lists your positions (`positionOf`), offers "Finalize the oracle vote" and "Resolve market" once
+  possible, and "Claim" when you have something to claim (`claimableOf`). A voided market shows a refund note.
+- **Oracle tab.** Your reporter status and stake, "Become a reporter" (approve 100 VLAD, then join) and "Leave"
+  (disabled, with the reason, while you have votes on questions that are not finalized), the reporter list, the
+  questions grouped as voting now / ready to finalize / upcoming / finalized with vote buttons, countdowns and
+  tallies, and the slashing rule.
+- **Create tab.** Your creator status, "Apply as creator" (approve 50 VLAD, then apply), and the market form:
+  question (name a public data source), 2 to 8 options, close date and time, and the reporter voting window
+  (3 days by default). Below it, the markets you created.
+
+Every read passes `chainId: 11155111`, so the page reads Sepolia even while the wallet is on another network.
+Custom errors of both contracts are decoded into readable sentences before the wallet opens.
+
+```bash
+cd web
+npm install
+npm run sync-abi   # after `forge build` in the repo root; copies the ABIs into src/abi
+npm run dev        # http://localhost:5173/Stellargon/
+npm run build
+```
+
+After deployment, put the oracle and predict addresses into `web/src/config/addresses.ts`. While they are zero,
+the page shows a "not deployed yet" banner, switches all on-chain reads off and previews the three seed markets.
 
 ## Part of the Stellar suite
 
