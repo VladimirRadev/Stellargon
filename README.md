@@ -213,8 +213,10 @@ npm run dev        # http://localhost:5173/Stellargon/
 npm run build
 ```
 
-After deployment, put the oracle and predict addresses into `web/src/config/addresses.ts`. While they are zero,
-the page shows a "not deployed yet" banner, switches all on-chain reads off and previews the three seed markets.
+The oracle and predict addresses in `web/src/config/addresses.ts` are the Sepolia deployment from
+`deployments/sepolia.json`, so the page reads the chain and shows the live markets: the three seed markets and any
+market created since. With a zero address there the page would show a "not deployed yet" state instead and switch
+all on-chain reads off.
 
 ## Smoke tests (2026-10-09, Phase B)
 
@@ -233,11 +235,13 @@ End-to-end run on Ethereum Sepolia on 2026-10-09 from the deployer `0xEb0243ea72
 
 ## Part of the Stellar suite
 
-| Repo | Site |
-|---|---|
-| [Stellar-Faucet](https://github.com/VladimirRadev/Stellar-Faucet) | https://vladimirradev.github.io/Stellar-Faucet/ |
-| [Stellar-LP-Staking](https://github.com/VladimirRadev/Stellar-LP-Staking) | https://vladimirradev.github.io/Stellar-LP-Staking/ |
-| [Stellar-Bank](https://github.com/VladimirRadev/Stellar-Bank) | https://vladimirradev.github.io/Stellar-Bank/ |
-| [Stellar-Store](https://github.com/VladimirRadev/Stellar-Store) | https://vladimirradev.github.io/Stellar-Store/ |
-| [Stellar-Arena](https://github.com/VladimirRadev/Stellar-Arena) | https://vladimirradev.github.io/Stellar-Arena/ |
-| [Stellargon](https://github.com/VladimirRadev/Stellargon) | https://vladimirradev.github.io/Stellargon/ |
+| App | Repository | Live site |
+|---|---|---|
+| Faucet ($VLAD token) | [Stellar-Faucet](https://github.com/VladimirRadev/Stellar-Faucet) | https://vladimirradev.github.io/Stellar-Faucet/ |
+| Swap & LP Staking | [Stellar-LP-Staking](https://github.com/VladimirRadev/Stellar-LP-Staking) | https://vladimirradev.github.io/Stellar-LP-Staking/ |
+| Bank | [Stellar-Bank](https://github.com/VladimirRadev/Stellar-Bank) | https://vladimirradev.github.io/Stellar-Bank/ |
+| Store | [Stellar-Store](https://github.com/VladimirRadev/Stellar-Store) | https://vladimirradev.github.io/Stellar-Store/ |
+| Arena + Arcade | [Stellar-Arena](https://github.com/VladimirRadev/Stellar-Arena) | https://vladimirradev.github.io/Stellar-Arena/ |
+| Stellargon (prediction market) | **[Stellargon](https://github.com/VladimirRadev/Stellargon)** (this repo) | https://vladimirradev.github.io/Stellargon/ |
+
+Stellar is a personal portfolio brand, unrelated to the Stellar (XLM) network.
