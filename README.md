@@ -216,6 +216,21 @@ npm run build
 After deployment, put the oracle and predict addresses into `web/src/config/addresses.ts`. While they are zero,
 the page shows a "not deployed yet" banner, switches all on-chain reads off and previews the three seed markets.
 
+## Smoke tests (2026-10-09, Phase B)
+
+End-to-end run on Ethereum Sepolia on 2026-10-09 from the deployer `0xEb0243ea72CB24eFb7128Ee7aca314C080b600c4` (an EIP-7702 delegated EOA), with `smoke-b.sh` (9 transactions across StellarArcade, StellarOracle and StellarPredict, one at a time, each waiting for its receipt). After every transaction the script compared balances, events and contract state at the transaction's block with the block before it; "ok" means every such assertion passed. Step numbers are the order in that run. Rows for this repo (steps 6 and 8 are the VLAD approvals; steps 1-5 were the Arcade, see the Stellar-Arena README):
+
+| Step | Function | Result | Tx (Blockscout) | Gas used |
+|---|---|---|---|---|
+| 6 | `vlad.approve(oracle, 100e18)` | ok | [`0xdaad401e…fe70ff`](https://eth-sepolia.blockscout.com/tx/0xdaad401e18de33a9da538615d1c392179cdf5f0448d024880cd95782e5fe70ff) | 128328 |
+| 7 | `oracle.joinAsReporter()` | ok | [`0xfa46fcb8…f2b6b9`](https://eth-sepolia.blockscout.com/tx/0xfa46fcb809ba12b116f578b4687a52bf28fd4b549b8a0c32fe9838ef7ef2b6b9) | 703037 |
+| 8 | `vlad.approve(predict, 10e18)` | ok | [`0xd11eeb2b…7e7065`](https://eth-sepolia.blockscout.com/tx/0xd11eeb2bfddce97df218857145a6c345d782ac7db10cf880ebf235f5777e7065) | 128316 |
+| 9 | `predict.bet(0, 0, 10e18)` | ok | [`0x78204c3d…19e56a`](https://eth-sepolia.blockscout.com/tx/0x78204c3dffe1a555c8534404da55c01c06f09c9db4ed6efdbd45e1359c19e56a) | 485878 |
+
+- Step 7: `ReporterJoined(deployer, 100 VLAD)`; `stakeOf(deployer)` = 100 VLAD, `hasRole(REPORTER_ROLE, deployer)` false -> true, `reporters()` = [deployer], `openVotes` = 0.
+- Step 9: `BetPlaced(0, deployer, 0, 10 VLAD)` on seed market 0 ("Will ETH/USD close above $2,500 on 2026-10-16 (UTC)?"), option 0 "Yes"; `positionOf(0, deployer)` = [10, 0] VLAD; `impliedOdds(0)` = [10000, 0] bps, i.e. 100% on "Yes" because it was the first bet into an empty pool; total pool 10 VLAD; `claimableOf` = 0 while the market is open.
+- Not run yet: voting, finalize, resolve and claim. Market 0 accepts bets until 2026-10-16 08:20:12 UTC. Reporters vote with `oracle.vote(0, option)` from then until 2026-10-19 08:20:12 UTC; `oracle.finalize(0)` works from 2026-10-19 08:20:13 UTC, then `predict.resolve(0)` and `predict.claim(0)`.
+
 ## Part of the Stellar suite
 
 | Repo | Site |
