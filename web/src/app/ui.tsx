@@ -1,11 +1,7 @@
 // Small presentational pieces shared by the Stellargon tabs.
 import type { ReactNode } from 'react'
-import type { Address } from 'viem'
-import { iVladTokenAbi } from '../abi'
-import { addresses } from '../config/addresses'
 import { formatToken } from '../shell/format'
-import { TxButton } from '../shell/TxButton'
-import { ERRORS, pct, type StateKey } from './stellargon'
+import { pct, type StateKey } from './stellargon'
 
 const STATE_STYLE: Record<StateKey, { label: string; cls: string; dot: string }> = {
   open: { label: 'Open', cls: 'border-accent-2/40 bg-accent/10 text-accent-2', dot: 'bg-accent-2' },
@@ -139,38 +135,6 @@ export function Line({ label, children, tone }: { label: ReactNode; children: Re
       </span>
     </div>
   )
-}
-
-/** Shows "Approve N VLAD" while the allowance for `spender` is below `need`, then the real action. */
-export function ApproveThen({
-  spender,
-  need,
-  allowance,
-  disabled,
-  children,
-}: {
-  spender: Address
-  need: bigint | undefined
-  allowance: bigint | undefined
-  disabled?: boolean
-  children: ReactNode
-}) {
-  if (need !== undefined && need > 0n && allowance !== undefined && allowance < need) {
-    return (
-      <div className="space-y-2">
-        <TxButton
-          request={{ address: addresses.vladToken, abi: iVladTokenAbi, functionName: 'approve', args: [spender, need] }}
-          disabled={disabled}
-          errorMessages={ERRORS}
-          className="h-12 w-full"
-        >
-          Approve {formatToken(need)} VLAD
-        </TxButton>
-        <p className="text-xs text-muted">Step 1 of 2: allow the contract to pull this VLAD. Step 2 appears once it is confirmed.</p>
-      </div>
-    )
-  }
-  return <>{children}</>
 }
 
 /** Dashed placeholder box for empty lists. */

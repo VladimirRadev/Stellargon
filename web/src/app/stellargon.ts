@@ -1,8 +1,10 @@
 // Contract handles, market math (mirrors src/StellarPredict.sol and src/StellarOracle.sol), readable errors and
 // the shared read hooks of the Stellargon page.
+import { useIsFetching } from '@tanstack/react-query'
+import { useRef, type MouseEvent } from 'react'
 import { formatUnits, keccak256, parseUnits, stringToHex, type Abi, type Address } from 'viem'
 import { useConnection, useReadContract, useReadContracts } from 'wagmi'
-import { iVladTokenAbi, stellarOracleAbi, stellarPredictAbi } from '../abi'
+import { stellarOracleAbi, stellarPredictAbi } from '../abi'
 import { CHAIN_ID, addresses } from '../config/addresses'
 import type { ErrorMessages } from '../shell/errors'
 import { formatDuration, isConfiguredAddress } from '../shell/format'
@@ -12,7 +14,6 @@ export const DEPLOYED =
 
 export const predict = { address: addresses.predict, abi: stellarPredictAbi, chainId: CHAIN_ID } as const
 export const oracle = { address: addresses.oracle, abi: stellarOracleAbi, chainId: CHAIN_ID } as const
-export const token = { address: addresses.vladToken, abi: iVladTokenAbi, chainId: CHAIN_ID } as const
 
 /** `createMarket` calls the oracle, so its reverts can carry oracle errors: merge them in for decoding. */
 const predictErrorNames = new Set<string>(stellarPredictAbi.filter((e) => e.type === 'error').map((e) => e.name))
@@ -129,19 +130,32 @@ export function stateOf(m: Pick<Market, 'state' | 'closeTime'>, now: number): St
   return m.state === State.CLOSED || now >= m.closeTime ? 'closed' : 'open'
 }
 
+/**
+ * Refetch interval for the page's reads: 15 s, paused while any transaction receipt is still pending.
+ * Why: several TxButtons disappear as soon as a read shows the new state (Claim, Vote, Finalize, Resolve, Leave,
+ * Join, Apply as creator). A TxButton shows its success toast only when it sees the receipt itself, and wagmi
+ * checks for the receipt every 8 s. If a 15 s read saw the new state first, the button would unmount before
+ * that and the toast would never appear. Pausing costs nothing: once the receipt is in, TxButton refreshes
+ * every read anyway.
+ */
+function usePollInterval(): number | false {
+  return useIsFetching({ queryKey: ['waitForTransactionReceipt'] }) > 0 ? false : 15_000
+}
+
 /** Newest-first ids n-1 … max(0, n-MAX_ITEMS). */
 const newestIds = (n: number) => Array.from({ length: Math.min(n, MAX_ITEMS) }, (_, k) => n - 1 - k)
 
 /** All markets (newest first), each with its implied odds. */
 export function useMarkets() {
-  const count = useReadContract({ ...predict, functionName: 'marketCount', query: { enabled: DEPLOYED, refetchInterval: 15_000 } })
+  const poll = usePollInterval()
+  const count = useReadContract({ ...predict, functionName: 'marketCount', query: { enabled: DEPLOYED, refetchInterval: poll } })
   const ids = newestIds(Number(count.data ?? 0n))
   const q = useReadContracts({
     contracts: ids.flatMap((i) => [
       { ...predict, functionName: 'market', args: [BigInt(i)] } as const,
       { ...predict, functionName: 'impliedOdds', args: [BigInt(i)] } as const,
     ]),
-    query: { enabled: DEPLOYED && ids.length > 0, refetchInterval: 15_000 },
+    query: { enabled: DEPLOYED && ids.length > 0, refetchInterval: poll },
   })
   const markets: Market[] = []
   ids.forEach((id, k) => {
@@ -173,11 +187,12 @@ export function useMarkets() {
 
 /** Oracle questions (newest first). */
 export function useQuestions() {
-  const count = useReadContract({ ...oracle, functionName: 'questionCount', query: { enabled: DEPLOYED, refetchInterval: 15_000 } })
+  const poll = usePollInterval()
+  const count = useReadContract({ ...oracle, functionName: 'questionCount', query: { enabled: DEPLOYED, refetchInterval: poll } })
   const ids = newestIds(Number(count.data ?? 0n))
   const q = useReadContracts({
     contracts: ids.map((i) => ({ ...oracle, functionName: 'question', args: [BigInt(i)] }) as const),
-    query: { enabled: DEPLOYED && ids.length > 0, refetchInterval: 15_000 },
+    query: { enabled: DEPLOYED && ids.length > 0, refetchInterval: poll },
   })
   const questions: Question[] = []
   ids.forEach((qid, k) => {
@@ -196,11 +211,12 @@ export function useQuestions() {
 
 /** Reporter list with each reporter's stake. */
 export function useReporters() {
-  const list = useReadContract({ ...oracle, functionName: 'reporters', query: { enabled: DEPLOYED, refetchInterval: 15_000 } })
+  const poll = usePollInterval()
+  const list = useReadContract({ ...oracle, functionName: 'reporters', query: { enabled: DEPLOYED, refetchInterval: poll } })
   const reporters = (list.data ?? []) as readonly Address[]
   const stakes = useReadContracts({
     contracts: reporters.map((r) => ({ ...oracle, functionName: 'stakeOf', args: [r] }) as const),
-    query: { enabled: DEPLOYED && reporters.length > 0, refetchInterval: 15_000 },
+    query: { enabled: DEPLOYED && reporters.length > 0, refetchInterval: poll },
   })
   return {
     reporters: reporters.map((address, i) => ({ address, stake: stakes.data?.[i]?.result as bigint | undefined })),
@@ -208,46 +224,40 @@ export function useReporters() {
   }
 }
 
-/** The connected wallet as a reporter: role, stake, open votes and VLAD allowance for the oracle. */
+/** The connected wallet as a reporter: role, stake and open votes. */
 export function useMyReporter() {
   const { address } = useConnection()
+  const poll = usePollInterval()
   const q = useReadContracts({
     contracts: address
       ? [
           { ...oracle, functionName: 'hasRole', args: [REPORTER_ROLE, address] },
           { ...oracle, functionName: 'stakeOf', args: [address] },
           { ...oracle, functionName: 'openVotes', args: [address] },
-          { ...token, functionName: 'allowance', args: [address, addresses.oracle] },
         ]
       : [],
-    query: { enabled: DEPLOYED && !!address, refetchInterval: 15_000 },
+    query: { enabled: DEPLOYED && !!address, refetchInterval: poll },
   })
   return {
     address,
     isReporter: q.data?.[0]?.result as boolean | undefined,
     stake: q.data?.[1]?.result as bigint | undefined,
     openVotes: q.data?.[2]?.result as bigint | undefined,
-    allowance: q.data?.[3]?.result as bigint | undefined,
     loading: DEPLOYED && !!address && q.isLoading,
   }
 }
 
-/** The connected wallet as a market creator: role and VLAD allowance for StellarPredict. */
+/** The connected wallet as a market creator: does it hold the creator role. */
 export function useMyCreator() {
   const { address } = useConnection()
+  const poll = usePollInterval()
   const q = useReadContracts({
-    contracts: address
-      ? [
-          { ...predict, functionName: 'hasRole', args: [CREATOR_ROLE, address] },
-          { ...token, functionName: 'allowance', args: [address, addresses.predict] },
-        ]
-      : [],
-    query: { enabled: DEPLOYED && !!address, refetchInterval: 15_000 },
+    contracts: address ? [{ ...predict, functionName: 'hasRole', args: [CREATOR_ROLE, address] }] : [],
+    query: { enabled: DEPLOYED && !!address, refetchInterval: poll },
   })
   return {
     address,
     isCreator: q.data?.[0]?.result as boolean | undefined,
-    allowance: q.data?.[1]?.result as bigint | undefined,
     loading: DEPLOYED && !!address && q.isLoading,
   }
 }
@@ -258,12 +268,13 @@ export function useMarketDetail(m: Market | undefined) {
   const id = BigInt(m?.id ?? 0)
   const qid = m?.oracleQid ?? 0n
   const enabled = DEPLOYED && !!m
+  const poll = usePollInterval()
   const o = useReadContracts({
     contracts: [
       { ...oracle, functionName: 'result', args: [qid] },
       { ...oracle, functionName: 'question', args: [qid] },
     ],
-    query: { enabled, refetchInterval: 15_000 },
+    query: { enabled, refetchInterval: poll },
   })
   const u = useReadContracts({
     contracts: address
@@ -271,10 +282,9 @@ export function useMarketDetail(m: Market | undefined) {
           { ...predict, functionName: 'positionOf', args: [id, address] },
           { ...predict, functionName: 'claimableOf', args: [id, address] },
           { ...predict, functionName: 'claimed', args: [id, address] },
-          { ...token, functionName: 'allowance', args: [address, addresses.predict] },
         ]
       : [],
-    query: { enabled: enabled && !!address, refetchInterval: 15_000 },
+    query: { enabled: enabled && !!address, refetchInterval: poll },
   })
   const result = o.data?.[0]?.result as readonly [boolean, number] | undefined
   const question = o.data?.[1]?.result as QuestionView | undefined
@@ -286,20 +296,37 @@ export function useMarketDetail(m: Market | undefined) {
     position: u.data?.[0]?.result as readonly bigint[] | undefined,
     claimable: u.data?.[1]?.result as bigint | undefined,
     claimed: u.data?.[2]?.result as boolean | undefined,
-    allowance: u.data?.[3]?.result as bigint | undefined,
   }
 }
 
 /** hasVoted(qid, me) for a list of questions. */
 export function useMyVotes(qids: readonly number[]) {
   const { address } = useConnection()
+  const poll = usePollInterval()
   const q = useReadContracts({
     contracts: address ? qids.map((qid) => ({ ...oracle, functionName: 'hasVoted', args: [BigInt(qid), address] }) as const) : [],
-    query: { enabled: DEPLOYED && !!address && qids.length > 0, refetchInterval: 15_000 },
+    query: { enabled: DEPLOYED && !!address && qids.length > 0, refetchInterval: poll },
   })
   const voted = new Map<number, boolean>()
   qids.forEach((qid, i) => voted.set(qid, q.data?.[i]?.result === true))
   return voted
+}
+
+/**
+ * Keeps a value as it was when a button was clicked. TxButton builds its success toast when the receipt arrives,
+ * from the props it has at that moment, so without this an edit made while the transaction is mining (a new
+ * amount, another option, a new question) would change what the toast reports.
+ * Use: wrap the TxButton in <div className="contents" onClickCapture={snap.capture}> and read snap.get() in its
+ * successMessage. Clicks on anything other than a button (the Blockscout link) do not overwrite the value.
+ */
+export function useClickSnapshot<T>(value: T) {
+  const ref = useRef(value)
+  return {
+    capture: (e: MouseEvent) => {
+      if (e.target instanceof Element && e.target.closest('button')) ref.current = value
+    },
+    get: () => ref.current,
+  }
 }
 
 // ------------------------------------------------------------------ math

@@ -1,6 +1,7 @@
 import { stellarOracleAbi } from '../abi'
 import { addresses } from '../config/addresses'
 import { explorerAddressUrl, formatCountdown, formatTimestamp, formatToken, truncateAddress } from '../shell/format'
+import { ApproveThen } from '../shell/ApproveThen'
 import { NetworkGate } from '../shell/NetworkGate'
 import { TxButton } from '../shell/TxButton'
 import { useNow } from '../shell/useNow'
@@ -17,7 +18,7 @@ import {
   useReporters,
   type Question,
 } from './stellargon'
-import { ApproveThen, Empty, Line, Note } from './ui'
+import { Empty, Line, Note } from './ui'
 
 type Phase = 'voting' | 'ready' | 'upcoming' | 'final'
 const phaseOf = (q: Question, now: number): Phase =>
@@ -80,6 +81,11 @@ function MySeat() {
           disabled={open > 0n}
           errorMessages={ERRORS}
           className="w-full"
+          successMessage={
+            me.isReporter
+              ? `Left the oracle; your stake of ${formatToken(stake)} VLAD was returned.`
+              : `Withdrew your remaining stake of ${formatToken(stake)} VLAD from the oracle.`
+          }
         >
           {me.isReporter ? 'Leave and withdraw' : 'Withdraw stake'} {formatToken(stake)} VLAD
         </TxButton>
@@ -101,12 +107,19 @@ function MySeat() {
         then vote once on every question, and leave with your stake when none of your votes is pending.
       </p>
       {short ? <p className="text-sm text-danger">You need {formatToken(REPORTER_STAKE)} VLAD; your balance is {formatToken(balance)}.</p> : null}
-      <ApproveThen spender={addresses.oracle} need={REPORTER_STAKE} allowance={me.allowance} disabled={short}>
+      <ApproveThen
+        spender={addresses.oracle}
+        spenderName="the Oracle"
+        amount={REPORTER_STAKE}
+        disabled={short}
+        stepLabels={['Approve VLAD', 'Join the oracle']}
+      >
         <TxButton
           request={{ address: addresses.oracle, abi: stellarOracleAbi, functionName: 'joinAsReporter' }}
           disabled={short}
           errorMessages={ERRORS}
           className="h-12 w-full"
+          successMessage={`Joined the oracle as a reporter with ${formatToken(REPORTER_STAKE)} VLAD staked.`}
         >
           Become a reporter · stake {formatToken(REPORTER_STAKE)} VLAD
         </TxButton>
@@ -278,6 +291,7 @@ function QuestionCard({
                       request={{ address: addresses.oracle, abi: stellarOracleAbi, functionName: 'vote', args: [BigInt(q.qid), i] }}
                       errorMessages={ERRORS}
                       className="h-8 min-h-0 px-3 text-xs"
+                      successMessage={`Voted “${label}” on question #${q.qid}.`}
                     >
                       Vote
                     </TxButton>
@@ -308,6 +322,11 @@ function QuestionCard({
               request={{ address: addresses.oracle, abi: stellarOracleAbi, functionName: 'finalize', args: [BigInt(q.qid)] }}
               errorMessages={ERRORS}
               className="w-full"
+              successMessage={
+                fromMarket
+                  ? `Question #${q.qid} finalized. Its market can now be resolved.`
+                  : `Question #${q.qid} finalized.`
+              }
             >
               Finalize
             </TxButton>

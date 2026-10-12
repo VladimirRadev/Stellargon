@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { parseEventLogs, type Hash } from 'viem'
+import { useWaitForTransactionReceipt } from 'wagmi'
 import { stellarPredictAbi } from '../abi'
-import { addresses } from '../config/addresses'
+import { CHAIN_ID, addresses } from '../config/addresses'
+import { ApproveThen } from '../shell/ApproveThen'
 import { formatDuration, formatTimestamp, formatToken } from '../shell/format'
 import { NetworkGate } from '../shell/NetworkGate'
 import { TxButton } from '../shell/TxButton'
@@ -14,10 +17,11 @@ import {
   ERRORS,
   MAX_OPTIONS,
   PREDICT_PLUS_ORACLE_ERRORS_ABI,
+  useClickSnapshot,
   useMarkets,
   useMyCreator,
 } from './stellargon'
-import { ApproveThen, Empty, Note } from './ui'
+import { Empty, Note } from './ui'
 
 const MAX_QUESTION = 280
 const MAX_OPTION = 40
@@ -76,12 +80,19 @@ function CreatorStatus() {
         pool. The admin can also grant it.
       </p>
       {short ? <p className="text-sm text-danger">Your balance is {formatToken(balance)} VLAD.</p> : null}
-      <ApproveThen spender={addresses.predict} need={CREATOR_FEE} allowance={me.allowance} disabled={short}>
+      <ApproveThen
+        spender={addresses.predict}
+        spenderName="Stellargon"
+        amount={CREATOR_FEE}
+        disabled={short}
+        stepLabels={['Approve VLAD', 'Apply as creator']}
+      >
         <TxButton
           request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'applyAsCreator' }}
           disabled={short}
           errorMessages={ERRORS}
           className="h-12 w-full"
+          successMessage={`Paid the ${formatToken(CREATOR_FEE)} VLAD creator fee; you can now create markets.`}
         >
           Apply as creator · {formatToken(CREATOR_FEE)} VLAD
         </TxButton>
@@ -114,6 +125,7 @@ function CreateForm() {
     setQuestion('')
     setOptions(['Yes', 'No'])
   }
+  const snap = useClickSnapshot(question.trim())
 
   return (
     <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
@@ -225,25 +237,43 @@ function CreateForm() {
       {me.isCreator === false ? <Note tone="warn">You need the creator role before you can create a market.</Note> : null}
 
       <NetworkGate connectMessage="Connect MetaMask to create this market.">
-      <TxButton
-        request={{
-          address: addresses.predict,
-          abi: PREDICT_PLUS_ORACLE_ERRORS_ABI,
-          functionName: 'createMarket',
-          args: [question.trim(), trimmed, BigInt(Number.isFinite(closeTime) ? closeTime : 0), BigInt(Math.max(0, windowSecs || 0))],
-        }}
-        disabled={!DEPLOYED || problems.length > 0 || !me.isCreator}
-        errorMessages={ERRORS}
-        className="h-12 w-full"
-        onConfirmed={reset}
-      >
-        Create market
-      </TxButton>
+        <div className="contents" onClickCapture={snap.capture}>
+          <TxButton
+            request={{
+              address: addresses.predict,
+              abi: PREDICT_PLUS_ORACLE_ERRORS_ABI,
+              functionName: 'createMarket',
+              args: [question.trim(), trimmed, BigInt(Number.isFinite(closeTime) ? closeTime : 0), BigInt(Math.max(0, windowSecs || 0))],
+            }}
+            disabled={!DEPLOYED || problems.length > 0 || !me.isCreator}
+            errorMessages={ERRORS}
+            className="h-12 w-full"
+            onConfirmed={reset}
+            successMessage={(hash) => <CreatedMarketMessage hash={hash} question={snap.get()} />}
+          >
+            Create market
+          </TxButton>
+        </div>
       </NetworkGate>
       <p className="text-xs text-muted">
         Creating a market is free for creators: the market asks the oracle its question in the same transaction.
       </p>
     </form>
+  )
+}
+
+/**
+ * Toast body after createMarket. The new market's id is only known on chain (it is the market count at the moment
+ * the transaction executes), so it is read from the MarketCreated event in the receipt. TxButton has already
+ * fetched that receipt under the same query key, so this hook reads it from the cache without a new request.
+ */
+function CreatedMarketMessage({ hash, question }: { hash: Hash; question: string }) {
+  const { data } = useWaitForTransactionReceipt({ hash, chainId: CHAIN_ID })
+  const id = data ? parseEventLogs({ abi: stellarPredictAbi, eventName: 'MarketCreated', logs: data.logs })[0]?.args.id : undefined
+  return (
+    <>
+      Created market{id !== undefined ? ` #${id.toString()}` : ''}: {question}
+    </>
   )
 }
 

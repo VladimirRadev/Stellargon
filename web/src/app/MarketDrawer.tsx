@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { stellarOracleAbi, stellarPredictAbi } from '../abi'
 import { addresses } from '../config/addresses'
 import { explorerAddressUrl, formatCountdown, formatTimestamp, formatToken, truncateAddress } from '../shell/format'
+import { ApproveThen } from '../shell/ApproveThen'
 import { CloseIcon, ExternalIcon } from '../shell/icons'
 import { NetworkGate } from '../shell/NetworkGate'
 import { TxButton } from '../shell/TxButton'
@@ -18,10 +19,11 @@ import {
   pct,
   stateOf,
   toInput,
+  useClickSnapshot,
   useMarketDetail,
   type Market,
 } from './stellargon'
-import { AmountInput, ApproveThen, Line, Note, OddsRow, StateBadge } from './ui'
+import { AmountInput, Line, Note, OddsRow, StateBadge } from './ui'
 
 /** Market page as a drawer: right-hand panel on desktop, full-screen sheet on phones. */
 export function MarketDrawer({ m, onClose }: { m: Market; onClose: () => void }) {
@@ -98,7 +100,7 @@ export function MarketDrawer({ m, onClose }: { m: Market; onClose: () => void })
               <p className="eyebrow">Place a bet</p>
               <div className="mt-3">
                 <NetworkGate connectMessage="Connect MetaMask to bet VLAD on this market.">
-                  <BetForm m={m} allowance={d.allowance} />
+                  <BetForm m={m} />
                 </NetworkGate>
               </div>
             </section>
@@ -129,7 +131,7 @@ export function MarketDrawer({ m, onClose }: { m: Market; onClose: () => void })
   )
 }
 
-function BetForm({ m, allowance }: { m: Market; allowance: bigint | undefined }) {
+function BetForm({ m }: { m: Market }) {
   const [option, setOption] = useState(0)
   const [input, setInput] = useState('')
   const { balance } = useVladBalance()
@@ -139,6 +141,7 @@ function BetForm({ m, allowance }: { m: Market; allowance: bigint | undefined })
   const payout = amount !== undefined ? payoutPreview(m, option, amount) : undefined
   const newOdds = amount !== undefined ? ((m.pools[option] + amount) * BPS) / (m.totalPool + amount) : undefined
   const multiple = payout !== undefined && amount ? Number((payout * 100n) / amount) / 100 : undefined
+  const snap = useClickSnapshot(`Bet ${formatToken(amount)} VLAD on “${m.options[option]}” in market #${m.id}.`)
 
   return (
     <div className="space-y-4">
@@ -189,16 +192,25 @@ function BetForm({ m, allowance }: { m: Market; allowance: bigint | undefined })
 
       {tooMuch ? <p className="text-sm text-danger">Amount exceeds your VLAD balance.</p> : null}
 
-      <ApproveThen spender={addresses.predict} need={amount} allowance={allowance} disabled={tooMuch}>
-        <TxButton
-          request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'bet', args: [BigInt(m.id), option, amount ?? 0n] }}
-          disabled={amount === undefined || tooMuch}
-          errorMessages={ERRORS}
-          className="h-12 w-full"
-          onConfirmed={() => setInput('')}
-        >
-          {amount !== undefined ? `Bet ${formatToken(amount)} VLAD on “${m.options[option]}”` : 'Enter an amount to bet'}
-        </TxButton>
+      <ApproveThen
+        spender={addresses.predict}
+        spenderName="Stellargon"
+        amount={amount ?? 0n}
+        disabled={tooMuch}
+        stepLabels={['Approve VLAD', 'Place the bet']}
+      >
+        <div className="contents" onClickCapture={snap.capture}>
+          <TxButton
+            request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'bet', args: [BigInt(m.id), option, amount ?? 0n] }}
+            disabled={amount === undefined || tooMuch}
+            errorMessages={ERRORS}
+            className="h-12 w-full"
+            onConfirmed={() => setInput('')}
+            successMessage={snap.get}
+          >
+            {amount !== undefined ? `Bet ${formatToken(amount)} VLAD on “${m.options[option]}”` : 'Enter an amount to bet'}
+          </TxButton>
+        </div>
       </ApproveThen>
     </div>
   )
@@ -230,6 +242,12 @@ function Settlement({ m, state, now, d }: { m: Market; state: string; now: numbe
 
   const votingOpen = now <= m.votingEnd
   const tally = d.oracleVotes
+  // Same rule as StellarPredict.resolve: an INVALID answer, or nobody on the winning option, voids the market.
+  const w = d.oracleWinner
+  const resolvedMessage =
+    w !== undefined && w !== INVALID && (m.pools[w] ?? 0n) > 0n
+      ? `Market #${m.id} resolved: “${m.options[w]}” won. Winners can claim now.`
+      : `Market #${m.id} resolved as void: every bettor can claim back what they bet.`
   return (
     <section aria-label="Settlement" className="space-y-3">
       <p className="eyebrow">Settlement</p>
@@ -247,6 +265,7 @@ function Settlement({ m, state, now, d }: { m: Market; state: string; now: numbe
               request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'resolve', args: [BigInt(m.id)] }}
               errorMessages={ERRORS}
               className="h-12 w-full"
+              successMessage={resolvedMessage}
             >
               Resolve market
             </TxButton>
@@ -265,6 +284,7 @@ function Settlement({ m, state, now, d }: { m: Market; state: string; now: numbe
               request={{ address: addresses.oracle, abi: stellarOracleAbi, functionName: 'finalize', args: [m.oracleQid] }}
               errorMessages={ERRORS}
               className="h-12 w-full"
+              successMessage={`Question #${m.oracleQid} finalized. Market #${m.id} can now be resolved.`}
             >
               Finalize the oracle vote
             </TxButton>
@@ -284,6 +304,13 @@ function Position({ m, state, d }: { m: Market; state: string; d: Detail }) {
   const pos = d.position
   const total = pos?.reduce((a, b) => a + b, 0n) ?? 0n
   const settled = state === 'resolved' || state === 'voided'
+  const snap = useClickSnapshot(
+    d.claimable === undefined
+      ? `Claimed your winnings from market #${m.id}.`
+      : state === 'voided'
+        ? `Claimed a refund of ${formatToken(d.claimable)} VLAD from market #${m.id}.`
+        : `Claimed ${formatToken(d.claimable)} VLAD from market #${m.id}.`,
+  )
   return (
     <div className="space-y-3">
       {pos && total > 0n ? (
@@ -302,13 +329,16 @@ function Position({ m, state, d }: { m: Market; state: string; d: Detail }) {
 
       {settled && d.claimed ? <Note>You already claimed from this market.</Note> : null}
       {settled && !d.claimed && d.claimable !== undefined && d.claimable > 0n ? (
-        <TxButton
-          request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'claim', args: [BigInt(m.id)] }}
-          errorMessages={ERRORS}
-          className="h-12 w-full"
-        >
-          {state === 'voided' ? 'Claim refund of' : 'Claim'} {formatToken(d.claimable)} VLAD
-        </TxButton>
+        <div className="contents" onClickCapture={snap.capture}>
+          <TxButton
+            request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'claim', args: [BigInt(m.id)] }}
+            errorMessages={ERRORS}
+            className="h-12 w-full"
+            successMessage={snap.get}
+          >
+            {state === 'voided' ? 'Claim refund of' : 'Claim'} {formatToken(d.claimable)} VLAD
+          </TxButton>
+        </div>
       ) : null}
       {state === 'resolved' && total > 0n && d.claimable === 0n && !d.claimed ? (
         <p className="text-sm text-muted">Your option did not win, so there is nothing to claim.</p>
