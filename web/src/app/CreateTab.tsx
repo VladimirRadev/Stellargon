@@ -17,7 +17,6 @@ import {
   ERRORS,
   MAX_OPTIONS,
   PREDICT_PLUS_ORACLE_ERRORS_ABI,
-  useClickSnapshot,
   useMarkets,
   useMyCreator,
 } from './stellargon'
@@ -125,7 +124,6 @@ function CreateForm() {
     setQuestion('')
     setOptions(['Yes', 'No'])
   }
-  const snap = useClickSnapshot(question.trim())
 
   return (
     <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
@@ -237,23 +235,21 @@ function CreateForm() {
       {me.isCreator === false ? <Note tone="warn">You need the creator role before you can create a market.</Note> : null}
 
       <NetworkGate connectMessage="Connect MetaMask to create this market.">
-        <div className="contents" onClickCapture={snap.capture}>
-          <TxButton
-            request={{
-              address: addresses.predict,
-              abi: PREDICT_PLUS_ORACLE_ERRORS_ABI,
-              functionName: 'createMarket',
-              args: [question.trim(), trimmed, BigInt(Number.isFinite(closeTime) ? closeTime : 0), BigInt(Math.max(0, windowSecs || 0))],
-            }}
-            disabled={!DEPLOYED || problems.length > 0 || !me.isCreator}
-            errorMessages={ERRORS}
-            className="h-12 w-full"
-            onConfirmed={reset}
-            successMessage={(hash) => <CreatedMarketMessage hash={hash} question={snap.get()} />}
-          >
-            Create market
-          </TxButton>
-        </div>
+        <TxButton
+          request={{
+            address: addresses.predict,
+            abi: PREDICT_PLUS_ORACLE_ERRORS_ABI,
+            functionName: 'createMarket',
+            args: [question.trim(), trimmed, BigInt(Number.isFinite(closeTime) ? closeTime : 0), BigInt(Math.max(0, windowSecs || 0))],
+          }}
+          disabled={!DEPLOYED || problems.length > 0 || !me.isCreator}
+          errorMessages={ERRORS}
+          className="h-12 w-full"
+          onConfirmed={reset}
+          successMessage={(hash) => <CreatedMarketMessage hash={hash} question={question.trim()} />}
+        >
+          Create market
+        </TxButton>
       </NetworkGate>
       <p className="text-xs text-muted">
         Creating a market is free for creators: the market asks the oracle its question in the same transaction.

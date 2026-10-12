@@ -19,7 +19,6 @@ import {
   pct,
   stateOf,
   toInput,
-  useClickSnapshot,
   useMarketDetail,
   type Market,
 } from './stellargon'
@@ -141,7 +140,6 @@ function BetForm({ m }: { m: Market }) {
   const payout = amount !== undefined ? payoutPreview(m, option, amount) : undefined
   const newOdds = amount !== undefined ? ((m.pools[option] + amount) * BPS) / (m.totalPool + amount) : undefined
   const multiple = payout !== undefined && amount ? Number((payout * 100n) / amount) / 100 : undefined
-  const snap = useClickSnapshot(`Bet ${formatToken(amount)} VLAD on “${m.options[option]}” in market #${m.id}.`)
 
   return (
     <div className="space-y-4">
@@ -199,18 +197,16 @@ function BetForm({ m }: { m: Market }) {
         disabled={tooMuch}
         stepLabels={['Approve VLAD', 'Place the bet']}
       >
-        <div className="contents" onClickCapture={snap.capture}>
-          <TxButton
-            request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'bet', args: [BigInt(m.id), option, amount ?? 0n] }}
-            disabled={amount === undefined || tooMuch}
-            errorMessages={ERRORS}
-            className="h-12 w-full"
-            onConfirmed={() => setInput('')}
-            successMessage={snap.get}
-          >
-            {amount !== undefined ? `Bet ${formatToken(amount)} VLAD on “${m.options[option]}”` : 'Enter an amount to bet'}
-          </TxButton>
-        </div>
+        <TxButton
+          request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'bet', args: [BigInt(m.id), option, amount ?? 0n] }}
+          disabled={amount === undefined || tooMuch}
+          errorMessages={ERRORS}
+          className="h-12 w-full"
+          onConfirmed={() => setInput('')}
+          successMessage={`Bet ${formatToken(amount)} VLAD on “${m.options[option]}” in market #${m.id}.`}
+        >
+          {amount !== undefined ? `Bet ${formatToken(amount)} VLAD on “${m.options[option]}”` : 'Enter an amount to bet'}
+        </TxButton>
       </ApproveThen>
     </div>
   )
@@ -304,13 +300,6 @@ function Position({ m, state, d }: { m: Market; state: string; d: Detail }) {
   const pos = d.position
   const total = pos?.reduce((a, b) => a + b, 0n) ?? 0n
   const settled = state === 'resolved' || state === 'voided'
-  const snap = useClickSnapshot(
-    d.claimable === undefined
-      ? `Claimed your winnings from market #${m.id}.`
-      : state === 'voided'
-        ? `Claimed a refund of ${formatToken(d.claimable)} VLAD from market #${m.id}.`
-        : `Claimed ${formatToken(d.claimable)} VLAD from market #${m.id}.`,
-  )
   return (
     <div className="space-y-3">
       {pos && total > 0n ? (
@@ -329,16 +318,18 @@ function Position({ m, state, d }: { m: Market; state: string; d: Detail }) {
 
       {settled && d.claimed ? <Note>You already claimed from this market.</Note> : null}
       {settled && !d.claimed && d.claimable !== undefined && d.claimable > 0n ? (
-        <div className="contents" onClickCapture={snap.capture}>
-          <TxButton
-            request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'claim', args: [BigInt(m.id)] }}
-            errorMessages={ERRORS}
-            className="h-12 w-full"
-            successMessage={snap.get}
-          >
-            {state === 'voided' ? 'Claim refund of' : 'Claim'} {formatToken(d.claimable)} VLAD
-          </TxButton>
-        </div>
+        <TxButton
+          request={{ address: addresses.predict, abi: stellarPredictAbi, functionName: 'claim', args: [BigInt(m.id)] }}
+          errorMessages={ERRORS}
+          className="h-12 w-full"
+          successMessage={
+            state === 'voided'
+              ? `Claimed a refund of ${formatToken(d.claimable)} VLAD from market #${m.id}.`
+              : `Claimed ${formatToken(d.claimable)} VLAD from market #${m.id}.`
+          }
+        >
+          {state === 'voided' ? 'Claim refund of' : 'Claim'} {formatToken(d.claimable)} VLAD
+        </TxButton>
       ) : null}
       {state === 'resolved' && total > 0n && d.claimable === 0n && !d.claimed ? (
         <p className="text-sm text-muted">Your option did not win, so there is nothing to claim.</p>
